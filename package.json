@@ -1,0 +1,21 @@
+{
+  "name": "callwright",
+  "version": "1.0.0",
+  "description": "A voice agent that places phone calls (reservations, appointments, inquiries) on your behalf, shaped by LLM direction + grounding. Runs fire-and-forget on Retell; an MCP server lets an LLM shape the grounding before each call.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "init": "node init.js",
+    "status": "node init.js status"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "express": "^4.21.0"
+  }
+}

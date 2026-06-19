@@ -1,0 +1,24 @@
+{
+  "call_type": "appointment_confirmation",
+  "target": {
+    "business_name": "Example Service Co",
+    "phone_number": "+15555550100"
+  },
+  "principal": {
+    "name": "Your Name",
+    "callback_number": "+15555550123",
+    "facts": {
+      "service_address": "123 Example St, Your City, ST 00000"
+    }
+  },
+  "request": {
+    "summary": "Confirm a service appointment",
+    "opening_ask": "I'm calling to confirm a service appointment. Could you help me with that?",
+    "preferred": { "date": "2026-07-03", "time": "09:00" }
+  },
+  "scenario_details": {
+    "service_type": "appliance repair",
+    "appointment_window": "9:00 AM to 1:00 PM on Friday"
+  },
+  "preferences": ["If no appointment is on file, ask them to check under the booking name."]
+}

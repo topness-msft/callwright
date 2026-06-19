@@ -1,0 +1,19 @@
+{
+  "call_type": "restaurant_reservation",
+  "target": {
+    "business_name": "Example Bistro",
+    "phone_number": "+15555550100"
+  },
+  "principal": {
+    "name": "Your Name"
+  },
+  "request": {
+    "summary": "Dinner reservation for 2",
+    "opening_ask": "I'm calling to see if you have a table for two this Friday around 7 PM.",
+    "party_size": 2,
+    "preferred": { "date": "2026-07-03", "time": "19:00" }
+  },
+  "scenario_details": {
+    "occasion": "none"
+  }
+}

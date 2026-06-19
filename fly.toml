@@ -1,0 +1,35 @@
+# fly.toml app configuration file generated for virtuphil on 2026-06-17T16:18:07-04:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'virtuphil'
+primary_region = 'iad'
+
+[build]
+
+[env]
+  PORT = '8787'
+  CALLWRIGHT_DATA_DIR = '/data'
+
+[[mounts]]
+  source = 'virtuphil_data'
+  destination = '/data'
+
+[http_service]
+  internal_port = 8787
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'GET'
+    path = '/health'
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '256mb'

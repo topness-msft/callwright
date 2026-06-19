@@ -1,0 +1,84 @@
+{
+  "haircut": {
+    "aliases": [
+      "haircut",
+      "hair_cut",
+      "salon",
+      "barber",
+      "hair"
+    ],
+    "default_flex_minutes": 60,
+    "recommended_details": {
+      "stylist": "Preferred stylist name, or 'first available'",
+      "service_type": "Type of service requested"
+    },
+    "must_confirm": [
+      "the date",
+      "the time",
+      "the service",
+      "the stylist if specified"
+    ],
+    "learned": []
+  },
+  "restaurant_reservation": {
+    "aliases": [
+      "restaurant",
+      "reservation",
+      "dinner",
+      "table"
+    ],
+    "default_flex_minutes": 45,
+    "recommended_details": {
+      "party_size": "Number of people",
+      "occasion": "Special occasion, if any (else none)"
+    },
+    "must_confirm": [
+      "the party size",
+      "the date",
+      "the time"
+    ],
+    "learned": []
+  },
+  "dentist": {
+    "aliases": [
+      "dentist",
+      "dental",
+      "cleaning",
+      "orthodontist"
+    ],
+    "default_flex_minutes": 120,
+    "recommended_details": {
+      "service_type": "e.g. routine cleaning, filling, checkup",
+      "new_or_existing": "New patient or existing patient",
+      "insurance": "Insurance provider, if they may ask"
+    },
+    "must_confirm": [
+      "the date",
+      "the time",
+      "the service",
+      "the patient name"
+    ],
+    "learned": []
+  },
+  "appointment_confirmation": {
+    "aliases": [
+      "appointment_confirmation",
+      "confirm_appointment",
+      "confirmation",
+      "service_appointment",
+      "repair",
+      "service_call"
+    ],
+    "default_flex_minutes": 0,
+    "recommended_details": {
+      "service_address": "Service/site address used to look up the appointment",
+      "service_type": "What the appointment is for (e.g. stove repair)"
+    },
+    "must_confirm": [
+      "the date",
+      "the appointment window",
+      "the name"
+    ],
+    "learned": []
+  }
+}

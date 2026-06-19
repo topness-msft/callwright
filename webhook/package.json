@@ -1,0 +1,13 @@
+{
+  "name": "virtuphil-webhook",
+  "version": "1.0.0",
+  "description": "Retell webhook -> Resend email notifier (serverless)",
+  "main": "api/retell-webhook.js",
+  "dependencies": {
+    "resend": "^3.0.0",
+    "retell-sdk": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

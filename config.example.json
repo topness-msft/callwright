@@ -1,0 +1,18 @@
+{
+  "retell": {
+    "from_number": "+15555550100"
+  },
+  "agents": {
+    "default": "agent_xxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "by_lang": {
+      "ja": "agent_yyyyyyyyyyyyyyyyyyyyyyyyyy"
+    }
+  },
+  "principal": {
+    "name": "Your Name",
+    "callback_number": "+15555550123",
+    "facts": {
+      "service_address": "123 Example St, Your City, ST 00000"
+    }
+  }
+}
