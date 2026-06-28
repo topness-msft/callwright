@@ -1,0 +1,25 @@
+# Dependencies
+node_modules
+
+# Secrets & env
+.env
+*.log
+token.txt
+mcp connect.txt
+
+# Per-user runtime state (created by init/configure at runtime; may contain PII)
+config.json
+agents.json
+.retell-ids.json
+
+# Per-call job / grounding files (personal call data)
+job.*.json
+grounding.*.json
+# ...but keep the sanitized sample jobs shipped in examples/
+!examples/
+!examples/**
+
+# OS / editor
+temp/
+.DS_Store
+.vercel

@@ -1,0 +1,173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "place_call",
+  "description": "Place an outbound phone call on the principal's behalf to accomplish a goal (e.g. a reservation or appointment). The assistant MUST collect every required field from the user before calling this tool. If a required field is missing or ambiguous, ASK the user — do not guess. DATA MINIMIZATION: in `principal.facts`, include ONLY the personal data plausibly needed for THIS specific call_type — never the user's whole profile. Choose the minimal subset (e.g. a repair-confirmation may need service_address; a dinner reservation needs none). PII CONVENTION: put personal/identifying data (address, member id, DOB, account number, etc.) in `principal.facts` (disclosed only if the business asks), and keep `request.scenario_details` for NON-PII call specifics (service_type, party_size, occasion). After assembling the arguments, read them back to the user in plain language — INCLUDING exactly which personal data types will be available to the agent (the names of the keys in principal.facts, plus name/callback_number) — and get confirmation before invoking. This tool is fire-and-forget: it returns a call_id immediately; the result is retrieved on demand via get_call_outcome (Retell is the system of record).",
+  "type": "object",
+  "required": ["call_type", "target", "principal", "request"],
+  "additionalProperties": false,
+  "properties": {
+
+    "call_type": {
+      "type": "string",
+      "description": "Open-ended scenario id, lowercase snake/kebab (e.g. 'haircut', 'restaurant_reservation', 'dentist_cleaning', 'general_inquiry'). If a matching scenario profile exists, it supplies recommended fields, default flexibility, direction hints, and confirm items. Unknown types fall back to generic behavior."
+    },
+
+    "target": {
+      "type": "object",
+      "description": "The business being called.",
+      "required": ["business_name", "phone_number"],
+      "additionalProperties": false,
+      "properties": {
+        "business_name": { "type": "string", "description": "Name of the business, used by the agent when speaking." },
+        "phone_number": {
+          "type": "string",
+          "description": "E.164 format, e.g. +15555550199. If the user gives a local format, normalize it and confirm.",
+          "pattern": "^\\+[1-9]\\d{6,14}$"
+        },
+        "timezone": { "type": "string", "description": "IANA tz of the business, e.g. America/New_York. Infer from area code if not given, then confirm." }
+      }
+    },
+
+    "principal": {
+      "type": "object",
+      "description": "The person the call is placed on behalf of. Stable identity + an OPEN grounding bag. This tool does not source grounding itself — the host LLM populates `facts` from the user's standing profile and/or other connected MCPs (WorkIQ, Gmail, calendar, CRM, etc.).",
+      "required": [],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "description": "Name to give for the reservation/appointment. OPTIONAL — omit for general inquiries where no booking/identity is involved, so the agent does not attach the principal's name to the call." },
+        "anonymous": { "type": "boolean", "description": "Set true for a truly nameless call (general inquiries). Suppresses backfill of name/callback_number from config and places the call with NO principal identity. Default false (basics are backfilled for convenience)." },
+        "callback_number": {
+          "type": "string",
+          "description": "E.164. The agent only shares this if the business asks. Mark in do_not_volunteer if it should never be offered proactively.",
+          "pattern": "^\\+[1-9]\\d{6,14}$"
+        },
+        "facts": {
+          "type": "object",
+          "description": "MINIMAL per-call subset of standing facts about the principal that the agent may share ONLY IF the business asks (never volunteer). Keys are snake_case labels the agent speaks humanized (e.g. service_address, account_number, date_of_birth, member_id, vehicle, insurance_provider, loyalty_number). Values are strings/numbers/booleans. DATA MINIMIZATION: include ONLY what THIS call_type plausibly needs — do NOT dump the user's full profile. The host LLM selects this subset from the user's standing profile and/or connected context MCPs (WorkIQ, Gmail, calendar, CRM). This is the right home for PII: anything identifying belongs here (only-if-asked + surfaced in the read-back), NOT in scenario_details. Distinct from request.scenario_details (non-PII call specifics).",
+          "additionalProperties": { "type": ["string", "number", "boolean"] }
+        }
+      }
+    },
+
+    "request": {
+      "type": "object",
+      "description": "What to actually accomplish. Shape these from the user's intent; ask for anything missing.",
+      "required": ["summary", "preferred"],
+      "additionalProperties": false,
+      "properties": {
+        "summary": {
+          "type": "string",
+          "description": "One sentence the agent can act on, e.g. 'Dinner reservation for 4'. For appointments, include the service, e.g. 'Routine dental cleaning'."
+        },
+        "opening_ask": {
+          "type": "string",
+          "description": "OPTIONAL. The first thing the agent says after disclosing it's an AI — leads with the goal/need, e.g. \"I'm calling to confirm an appointment. Could you help me with that?\". If omitted, one is derived from `summary`. Do NOT phrase as 'is now a good time?'."
+        },
+        "party_size": { "type": "integer", "minimum": 1, "description": "Required for reservations. Number of people." },
+        "max_party_size": { "type": "integer", "minimum": 1, "description": "Negotiation ceiling; agent will not accept a larger booking. Defaults to party_size if omitted." },
+        "preferred": {
+          "type": "object",
+          "description": "The first-choice date/time. The agent aims for this before falling back. If acceptable_windows is omitted, a single window is derived from this plus the flexibility minutes.",
+          "required": ["date", "time"],
+          "additionalProperties": false,
+          "properties": {
+            "date": { "type": "string", "format": "date", "description": "YYYY-MM-DD. Resolve relative dates ('Saturday') against the business timezone and confirm the absolute date." },
+            "time": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$", "description": "24h HH:MM." }
+          }
+        },
+        "acceptable_windows": {
+          "type": "array",
+          "description": "OPTIONAL ordered fallback ladder. The agent negotiates DOWN this list and accepts nothing outside it. If omitted, one window is derived from `preferred` +/- the flexibility minutes (default 45). Provide explicitly when the user names multiple fallback dates/times.",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["date", "earliest", "latest"],
+            "additionalProperties": false,
+            "properties": {
+              "date": { "type": "string", "format": "date" },
+              "earliest": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+              "latest": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" }
+            }
+          }
+        }
+      }
+    },
+
+    "scenario_details": {
+      "type": "object",
+      "description": "NON-PII scenario specifics keyed by the matching profile (e.g. for 'haircut': stylist, service_type, hair_length; for a reservation: occasion). These are spoken PROACTIVELY by the agent during the call, so DO NOT put personal/identifying data here (address, member id, DOB, phone, account number) — that belongs in principal.facts (only-if-asked). The profile lists which keys are recommended; the dispatcher warns when recommended keys are missing and speaks the provided ones during the call. Open-ended bag — any string/number/boolean values allowed.",
+      "additionalProperties": { "type": ["string", "number", "boolean"] }
+    },
+
+    "preferences": {
+      "type": "array",
+      "description": "Nice-to-haves, ranked. Never blockers. e.g. 'Quieter table', 'Patio over bar'.",
+      "items": { "type": "string" }
+    },
+
+    "constraints": {
+      "type": "array",
+      "description": "Things the agent must proactively raise/verify, e.g. 'Nut allergy — confirm kitchen can accommodate', 'Wheelchair access needed'.",
+      "items": { "type": "string" }
+    },
+
+    "must_confirm": {
+      "type": "array",
+      "description": "Fields the agent reads back to the business before ending the call. Defaults to date, time, party_size, name.",
+      "items": { "type": "string" }
+    },
+
+    "do_not_volunteer": {
+      "type": "array",
+      "description": "Facts the agent may USE if asked but must NOT offer proactively (PII minimization). e.g. 'callback_number'.",
+      "items": { "type": "string" }
+    },
+
+    "anticipated_qa": {
+      "type": "array",
+      "description": "Pre-answers to likely business questions, to avoid awkward pauses. Optional but improves call quality.",
+      "items": {
+        "type": "object",
+        "required": ["q", "a"],
+        "additionalProperties": false,
+        "properties": {
+          "q": { "type": "string" },
+          "a": { "type": "string" }
+        }
+      }
+    },
+
+    "overrides": {
+      "type": "object",
+      "description": "Optional per-call overrides of the direction template defaults. Omit to use template defaults.",
+      "additionalProperties": false,
+      "properties": {
+        "time_flexibility_minutes": { "type": "integer", "minimum": 0 },
+        "disclose_ai": { "type": "boolean", "description": "Default true. Do not set false without a legal reason." },
+        "record_audio": { "type": "boolean", "description": "Default false. If true, agent must speak a consent line." },
+        "max_call_duration_seconds": { "type": "integer", "minimum": 30 },
+        "on_voicemail": { "type": "string", "enum": ["leave_message", "hang_up"] },
+        "retry": {
+          "type": "object",
+          "description": "Retry-on-no-answer policy. Defaults to exactly 1 retry; never raise max_retries above 1 without an explicit user request (repeated calls are spammy).",
+          "additionalProperties": false,
+          "properties": {
+            "max_retries": { "type": "integer", "minimum": 0, "maximum": 5, "description": "Number of re-dials on no-answer. Default 1. >1 only on explicit user request." },
+            "on": { "type": "array", "items": { "type": "string", "enum": ["no_answer", "busy", "failed"] } },
+            "delay_seconds": { "type": "integer", "minimum": 0, "maximum": 600 }
+          }
+        }
+      }
+    },
+
+    "notify": {
+      "type": "object",
+      "description": "Optional per-call 'text me when it's done'. Off by default — results are pulled on demand via get_call_outcome. Only set sms:true if the user asks to be notified.",
+      "additionalProperties": false,
+      "properties": {
+        "sms": { "type": "boolean", "description": "True = send the user an SMS when this call completes." },
+        "to": { "type": "string", "description": "The user's own number to text (E.164). If omitted, uses the saved notify number; if none, ask the user." }
+      }
+    }
+  }
+}

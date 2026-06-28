@@ -1,0 +1,16 @@
+{
+  "call_type": "general_inquiry",
+  "target": {
+    "business_name": "Example Hotel",
+    "phone_number": "+815555550100",
+    "timezone": "Asia/Tokyo"
+  },
+  "principal": {
+    "anonymous": true
+  },
+  "request": {
+    "summary": "Ask about fitness center hours",
+    "opening_ask": "フィットネスセンターの営業時間を伺えますでしょうか。",
+    "preferred": { "date": "2026-07-03", "time": "10:00" }
+  }
+}

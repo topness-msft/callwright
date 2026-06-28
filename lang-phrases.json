@@ -1,0 +1,29 @@
+{
+  "_README": "Per-language PHRASING for composed helper strings. Code injects VALUES; this file owns wording. Keyed by BCP-47 primary subtag (en, ja, ...). Unknown languages fall back to 'en'. Placeholders in {braces} are filled by dispatch-core.composeCall. Adding a language = add a block here + a generic-prompt.<lang>.md + a voice that speaks it (see docs/add-language-spec.md). Keep strings faithful to native etiquette; the AI-disclosure line is legally sensitive — have a native speaker review before production.",
+  "en": {
+    "principal_ref_anon": "the person I'm assisting",
+    "behalf_named": " on behalf of {name}",
+    "opening_ask_fallback": "I'm calling about {objective_lc}. Could you help me with that?",
+    "voicemail_callback": "Hi, this is an AI assistant calling{behalf}. I'm calling to {objective_lc}. Please call back at {callback}. Thank you.",
+    "voicemail_no_callback": "Hi, this is an AI assistant calling{behalf}. I'm calling to {objective_lc}. Please call back at your convenience. Thank you.",
+    "known_facts_none": "None on file.",
+    "booking_name_line_named": "If this becomes a booking, or the business asks what name it's under, use **{name}**. Do not state the name before then.",
+    "booking_name_line_anon": "This is a general inquiry — no name or booking is involved. Do not give or invent a name.",
+    "confirm": { "base": ["the date", "the time"], "party_size": "the party size", "join": ", " },
+    "none_text": "None.",
+    "opening_preview": "Hi there! {opening_ask} I'm an AI assistant making this call on someone's behalf."
+  },
+  "ja": {
+    "principal_ref_anon": "依頼主",
+    "behalf_named": "",
+    "opening_ask_fallback": "{objective}についてお伺いしたく、お電話いたしました。少々よろしいでしょうか。",
+    "voicemail_callback": "お世話になっております。AIアシスタントでございます。{objective}の件でお電話いたしました。{callback}までご連絡ください。よろしくお願いいたします。",
+    "voicemail_no_callback": "お世話になっております。AIアシスタントでございます。{objective}の件でお電話いたしました。ご都合のよいときにご連絡ください。よろしくお願いいたします。",
+    "known_facts_none": "（特になし）",
+    "booking_name_line_named": "予約になる場合、または先方に「どちら様のお名前で？」と尋ねられた場合は、**{name}**とお伝えください。それ以前に名前を名乗らないでください。",
+    "booking_name_line_anon": "これは一般的なお問い合わせです。名前や予約は関係ありません。名前を伝えたり作ったりしないでください。",
+    "confirm": { "base": ["日付", "時間"], "party_size": null, "join": "、" },
+    "none_text": "特になし。",
+    "opening_preview": "お世話になっております。{opening_ask} このお電話は、ある方に代わってAIアシスタントがおかけしております。"
+  }
+}

@@ -1,0 +1,16 @@
+node_modules
+.git
+.env
+*.log
+temp
+
+# Mutable state — created at runtime on the volume, NOT baked into the image
+# (config.json/agents.json may contain personal data). scenario-profiles.json
+# IS kept (shipped as the seed for the volume).
+config.json
+agents.json
+.retell-ids.json
+
+webhook/node_modules
+job.*.json
+grounding.*.json
