@@ -50,7 +50,7 @@ function makeApi(opts = {}) {
   const api = async (method, p, body) => {
     calls.push({ method, path: p, body });
     if (method === "GET" && p === "/list-voices") return VOICES;
-    if (method === "GET" && p === "/list-agents") return existingAgents;
+    if (method === "POST" && p === "/v2/list-agents") return { items: existingAgents, has_more: false };
     if (method === "POST" && p === "/create-retell-llm") {
       if (opts.failCreateLlm) throw new Error("llm boom");
       return { llm_id: "llm_new" };

@@ -218,15 +218,22 @@ async function _addLanguage(api, { lang, display_name, prompt_text, phrases, voi
   }
 
   // Reuse an existing generic_<primary> agent (idempotent re-run) instead of
-  // creating a duplicate.
+  // creating a duplicate. Uses the unified v2 endpoint (GET /list-agents removed
+  // 2026-07-31); read `items` and filter to voice agents.
   let agents = [];
-  try { agents = await api("GET", "/list-agents"); } catch { agents = []; }
+  try {
+    const resp = await api("POST", "/v2/list-agents", { filter_criteria: { channel: { type: "string", op: "eq", value: "voice" } } });
+    agents = Array.isArray(resp) ? resp : (resp.items || []);
+  } catch { agents = []; }
   const existing = (agents || []).find((a) => (a.agent_name || "").toLowerCase() === `generic_${primary}`);
 
   let agent_id, llm_id;
   if (existing) {
     agent_id = existing.agent_id;
+    // The v2 list response omits response_engine; fetch the agent detail to get
+    // the llm_id so we can refresh its prompt on reuse.
     llm_id = existing.response_engine?.llm_id || null;
+    if (!llm_id) { try { const d = await api("GET", `/get-agent/${agent_id}`); llm_id = d.response_engine?.llm_id || null; } catch { /* best effort */ } }
     if (llm_id) { try { await api("PATCH", `/update-retell-llm/${llm_id}`, { general_prompt: setup.loadPromptText(promptFileName) }); } catch { /* best effort */ } }
     try { await api("PATCH", `/update-agent/${agent_id}`, { voice_id: resolvedVoice, language: retellLang }); } catch { /* best effort */ }
   } else {

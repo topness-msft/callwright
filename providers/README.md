@@ -55,7 +55,7 @@ module.exports = {
 
 | # | Method | **Retell** (current code) | **ElevenLabs** (verified equivalent) |
 |---|---|---|---|
-| 1 | `verifyKey` | `GET /list-agents` | `GET /v1/convai/agents` (list agents) |
+| 1 | `verifyKey` | `POST /v2/list-agents` (voice channel filter; paginated) | `GET /v1/convai/agents` (list agents) |
 | 2 | `resolveFromNumber` | `GET /v2/list-phone-numbers` (buy/list in-platform) | List imported numbers; **BYO Twilio/SIP** |
 | 3 | `ensureGenericAgent` | `POST /create-retell-llm` + `POST /create-agent` (voice_id, language, stt_mode, interruption_sensitivity, `press_digit` + `end_call` tools, voicemail_option, post_call_analysis_data) | `POST /v1/convai/agents/create` with `conversation_config` (prompt, first_message, voice, system tools: `play_keypad_touch_tone`, `voicemail_detection`, `language_detection`, `end_call`, `skip_turn`) |
 | 4 | `placeCall` | `POST /v2/create-phone-call` with `override_agent_id` + `retell_llm_dynamic_variables` | Outbound call API / batch-calls with per-call **dynamic variables** + overrides (`language`, `first_message`, `system_prompt`, `voice_id`) |

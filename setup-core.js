@@ -75,10 +75,27 @@ function loadPromptText(file = DEFAULT_PROMPT_FILE) {
 }
 
 // ---- Retell infra ----
+// List voice agents via the unified v2 endpoint (POST /v2/list-agents), reading
+// `items` and following pagination. Replaces the deprecated GET /list-agents
+// (removed 2026-07-31). The channel filter preserves the old voice-only behavior.
+async function listAgents(key) {
+  if (!key) throw new Error("No RETELL_API_KEY provided.");
+  const out = [];
+  let pageKey;
+  do {
+    const body = { filter_criteria: { channel: { type: "string", op: "eq", value: "voice" } } };
+    if (pageKey) body.pagination_key = pageKey;
+    const resp = await apiCall(key, "POST", "/v2/list-agents", body);
+    const items = Array.isArray(resp) ? resp : (resp.items || []);
+    out.push(...items);
+    pageKey = (!Array.isArray(resp) && resp.has_more) ? resp.pagination_key : null;
+  } while (pageKey);
+  return out;
+}
+
 // Verify a key by listing agents. Returns the agents array (throws if invalid).
 async function verifyKey(key) {
-  if (!key) throw new Error("No RETELL_API_KEY provided.");
-  return apiCall(key, "GET", "/list-agents");
+  return listAgents(key);
 }
 
 async function listNumbers(key) {
@@ -276,7 +293,7 @@ function guardPlaceCall(config = loadConfig()) {
 module.exports = {
   BASE, CONFIG_PATH, AGENTS_PATH, DEFAULT_PROMPT_FILE, POST_CALL_ANALYSIS,
   apiCall, loadConfig, saveConfig, loadPromptText, webhookUrl,
-  verifyKey, listNumbers, resolveFromNumber, ensureGenericAgent, applyInfra,
+  verifyKey, listAgents, listNumbers, resolveFromNumber, ensureGenericAgent, applyInfra,
   detectLanguageAgents, setPrincipal, setupStatus, guardPlaceCall,
   unsavedDurableFacts,
 };
