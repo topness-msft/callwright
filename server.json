@@ -1,22 +1,44 @@
 {
-  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.topness-msft/callwright",
-  "description": "MCP server for an AI voice agent that places phone calls on your behalf (reservations, appointments, confirmations, inquiries) in English, Japanese, or any language added at runtime. Built on Retell; it discloses it's an AI, negotiates within bounds you set, and reports the outcome.",
-  "status": "active",
-  "version": "1.0.0",
+  "description": "Self-hosted MCP voice agent that places phone calls on your behalf via Retell.",
+  "version": "1.0.1",
   "repository": {
     "url": "https://github.com/topness-msft/callwright",
     "source": "github"
   },
   "packages": [
     {
-      "registry_type": "npm",
+      "registryType": "npm",
       "identifier": "callwright",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "transport": {
         "type": "streamable-http",
         "url": "http://localhost:8787/mcp"
-      }
+      },
+      "environmentVariables": [
+        {
+          "name": "RETELL_API_KEY",
+          "description": "Your Retell secret API key (stays server-side)",
+          "isRequired": true,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "MCP_AUTH_TOKEN",
+          "description": "Bearer token clients must send; required when exposed beyond localhost",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "PORT",
+          "description": "Port the HTTP MCP server listens on (default 8787)",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        }
+      ]
     }
   ]
 }
