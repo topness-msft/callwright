@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 // callwright — MCP server (hosted, single-user).
 //
 // Streamable HTTP MCP server exposing the call-placing tools. Single-user:

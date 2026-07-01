@@ -3,15 +3,69 @@
   "version": "1.0.0",
   "description": "A voice agent that places phone calls (reservations, appointments, inquiries) on your behalf, shaped by LLM direction + grounding. Runs fire-and-forget on Retell; an MCP server lets an LLM shape the grounding before each call.",
   "main": "server.js",
+  "bin": {
+    "callwright": "server.js",
+    "callwright-init": "init.js"
+  },
+  "files": [
+    "server.js",
+    "init.js",
+    "dispatch-core.js",
+    "dispatch.js",
+    "get-call.js",
+    "lang-core.js",
+    "learn-core.js",
+    "learn.js",
+    "notify-core.js",
+    "paths.js",
+    "retry-core.js",
+    "setup-agent-from.js",
+    "setup-core.js",
+    "update-prompt.js",
+    "generic-prompt.md",
+    "generic-prompt.ja.md",
+    "place_call.schema.json",
+    "scenario-profiles.json",
+    "lang-phrases.json",
+    "config.example.json",
+    "grounding.example.json",
+    ".env.example",
+    "Dockerfile",
+    "fly.toml",
+    ".dockerignore",
+    "providers/",
+    "webhook/",
+    "examples/",
+    "docs/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "start": "node server.js",
     "init": "node init.js",
     "status": "node init.js status",
     "test": "node --test"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "retell",
+    "voice-agent",
+    "phone-calls"
+  ],
+  "author": "topness-msft",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/topness-msft/callwright.git"
+  },
+  "homepage": "https://github.com/topness-msft/callwright#readme",
+  "bugs": {
+    "url": "https://github.com/topness-msft/callwright/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
   "type": "commonjs",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",

@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 // callwright — first-run setup wizard (terminal on-ramp).
 //
 //   node init.js            # interactive (or scripted via piped stdin)
