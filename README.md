@@ -96,17 +96,34 @@ Callwright dials through [Retell](https://retellai.com), so you need a Retell ac
 
 ---
 
-## Run locally
+## Install
+
+Published on npm as [`callwright`](https://www.npmjs.com/package/callwright). Install globally to get the `callwright` (server) and `callwright-init` (setup wizard) commands:
 
 ```bash
-npm install
-node init.js                       # one-time setup wizard (number, agent, your identity)
-export RETELL_API_KEY=key_xxx       # [Environment]::SetEnvironmentVariable on Windows
-node server.js                      # MCP server on :8787
+npm install -g callwright
 ```
 
-Check setup anytime: `node init.js status`.
+Or clone this repo and `npm install` to run from source (`node server.js`, `node init.js`).
+
+Either way, callwright is a **self-hosted, single-user HTTP MCP server**: you run your own instance with your own [Retell](https://retellai.com) credentials (see [Retell setup](#retell-setup-prerequisites) above). Nothing is shared or multi-tenant.
+
+## Run locally
+
+Using the global install:
+
+```bash
+callwright-init                     # one-time setup wizard (number, agent, your identity)
+export RETELL_API_KEY=key_xxx       # [Environment]::SetEnvironmentVariable on Windows
+callwright                          # MCP server on :8787 (POST /mcp)
+```
+
+From a cloned repo, use `node init.js` and `node server.js` instead.
+
+Check setup anytime: `callwright-init status` (or `node init.js status`).
 Place a call from the CLI (bypassing MCP): `node dispatch.js <job.json> --go`.
+
+> For **local** use, `MCP_AUTH_TOKEN` is optional — with it unset the server accepts loopback connections only. Set it once you expose the server beyond localhost (see [Deploy hosted](#deploy-hosted-single-user)).
 
 ---
 
@@ -134,6 +151,12 @@ docker build -t callwright .
 docker run -p 8787:8787 --env-file .env callwright
 ```
 Or point the host at this repo (it auto-detects the Dockerfile). Mount a volume at the app dir so `config.json` / `scenario-profiles.json` persist across restarts.
+
+No-Docker alternative: install from npm on the host and run the binary directly (point `CALLWRIGHT_DATA_DIR` at your persistent volume so runtime state survives restarts):
+```bash
+npm install -g callwright
+CALLWRIGHT_DATA_DIR=/data callwright     # reads RETELL_API_KEY / MCP_AUTH_TOKEN from env
+```
 
 ### 4. First-run setup over MCP (no webpage needed)
 Do setup **in chat**:
