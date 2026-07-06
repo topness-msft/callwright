@@ -117,6 +117,7 @@ function buildServer() {
     "get_setup_status",
     {
       title: "Get setup status",
+      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
       description: "Report what callwright has configured (from-number, agent, your name/callback, fact keys) and what's missing. Call this first if you're unsure whether setup is complete; if basics are missing, ask the user for them and call configure.",
       inputSchema: {},
     },
@@ -127,6 +128,7 @@ function buildServer() {
     "configure",
     {
       title: "Configure principal + (optional) provision infra",
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       description: "Save the user's standing profile so calls need less per-call input. Set name and callback_number (the always-safe basics). Optionally save standing facts (durable PII like service_address, member_id — a STORE the LLM later draws minimal subsets from). This is also the SAVE TARGET for the lazy-save nudge: when place_call returns a save_suggestion (durable facts not yet stored), offer to save them and, if the user agrees, call configure with those facts so they're not re-asked next time. Set run_provisioning=true to verify the Retell key, pick the phone number, and create the generic agent if missing. Gather values from the user in chat before calling.",
       inputSchema: {
         name: z.string().optional().describe("Name used when a call becomes a booking."),
@@ -164,6 +166,7 @@ function buildServer() {
     "list_scenarios",
     {
       title: "List scenario profiles",
+      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
       description: "List known scenario profiles (recommended details, default flexibility, aliases). Use to learn what grounding a given call type benefits from before constructing place_call.",
       inputSchema: {},
     },
@@ -181,6 +184,7 @@ function buildServer() {
     "place_call",
     {
       title: "Place an outbound phone call",
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
       description:
         "Place a call on the user's behalf. DRY-RUN by default: returns a read-back (including exactly which personal data types will be available to the agent) and does NOT dial. Review it with the user, then call again with confirm:true to actually place the call. DATA MINIMIZATION: in principal.facts include ONLY what THIS call needs; put PII in principal.facts (shared only if asked), not in scenario_details (spoken proactively). For a truly nameless general inquiry set principal.anonymous:true. LANGUAGE: the agent SPEAKS the text fields you provide verbatim. When the call is not in English (set lang accordingly), you MUST write every spoken field in that language — request.summary, request.opening_ask, scenario_details values, preferences, must_confirm, and any constraints. Do NOT write them in English for a non-English call. Fire-and-forget: returns a call_id; read the outcome later with get_call_outcome.",
       inputSchema: {
@@ -306,6 +310,7 @@ function buildServer() {
     "get_call_outcome",
     {
       title: "Get call outcome",
+      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
       description: "Fetch a call's outcome, post-call analysis, and transcript by call_id. Use after place_call (give it ~30-60s to complete + analyze).",
       inputSchema: { call_id: z.string() },
     },
@@ -321,6 +326,7 @@ function buildServer() {
     "list_recent_calls",
     {
       title: "List recent calls",
+      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
       description: "List recent calls in this Retell workspace (most recent first).",
       inputSchema: { limit: z.number().int().min(1).max(50).optional() },
     },
@@ -341,6 +347,7 @@ function buildServer() {
     "list_retries",
     {
       title: "List call retries",
+      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
       description: "Show recent automatic call retries (no-answer/busy/failed re-dials), most recent first. Retries default to at most 1 per call and never auto-escalate. Each entry shows the original call, the attempt number/cap, the new call_id (if placed), and status (scheduled/placed/failed).",
       inputSchema: { limit: z.number().int().min(1).max(100).optional() },
     },
@@ -354,6 +361,7 @@ function buildServer() {
     "configure_notifications",
     {
       title: "Configure SMS notifications",
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       description: "Set up the optional 'text me when the call is done' feature. Saves the user's mobile number as the default notify target, provisions the one-time SMS summary agent if needed, and (with test:true) sends a test SMS now so the user can confirm delivery. Per-call SMS is still opt-in via place_call notify.sms — this just stores the number + infra. NOTE: the Retell from-number must be SMS-capable (KYC-gated).",
       inputSchema: {
         sms_to: z.string().optional().describe("The user's mobile number (E.164) to text by default."),
@@ -403,6 +411,7 @@ function buildServer() {
     "learn_from_call",
     {
       title: "Learn from a call",
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       description: "Improve the system from a completed call. If the call_type matches a profile, it's ENRICHED (deferred questions become recommended_details, value-baked ones rejected). If it has NO profile, the (generalized) scenario is STAGED as a candidate; once seen >=2 times it becomes a PROPOSAL you can review and create via create_profile. Creation is never silent — it's proposed for you to approve (or merge into an existing profile with add_scenario_alias).",
       inputSchema: {
         call_id: z.string(),
@@ -447,6 +456,7 @@ function buildServer() {
     "list_candidates",
     {
       title: "List scenario candidates",
+      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
       description: "Show staged scenario candidates (unmatched call types seen but not yet a profile) with their occurrence counts, variant names, and the questions agents had to defer. Candidates seen >=2 times are 'ready' to propose as a new profile (create_profile) or merge into an existing one (add_scenario_alias).",
       inputSchema: {},
     },
@@ -469,6 +479,7 @@ function buildServer() {
     "create_profile",
     {
       title: "Create a scenario profile",
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       description: "Create a NEW scenario profile (propose-and-confirm — call this only after reviewing a learn_from_call proposal with the user). GUARDS: the name must be a GENERAL scenario (not instance-shaped like 'dinner_for_2'); recommended_details must be GENERALIZED field keys ('destination', not 'destination_haneda') — values belong in the per-call job, never the profile. If the scenario is really the same as an existing profile, use add_scenario_alias instead. Clears the matching candidate on success.",
       inputSchema: {
         name: z.string().describe("snake_case general scenario id, e.g. 'hotel_transport_inquiry'."),
@@ -504,6 +515,7 @@ function buildServer() {
     "add_scenario_alias",
     {
       title: "Add an alias to a scenario profile",
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       description: "Merge a call_type into an EXISTING profile by adding it as an alias (the anti-splintering 'merge, don't create' path). Use when a candidate / new call_type is really the same scenario as a profile you already have. Clears the matching candidate.",
       inputSchema: {
         profile: z.string().describe("The existing profile to merge into (e.g. 'hotel_transport_inquiry')."),
@@ -532,6 +544,7 @@ function buildServer() {
     "reject_candidate",
     {
       title: "Reject a scenario candidate",
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
       description: "Discard a staged scenario candidate that is noise or a one-off (not a real recurring scenario). Removes it from the candidates store.",
       inputSchema: { scenario: z.string().describe("The candidate scenario name to drop (from list_candidates).") },
     },
@@ -549,6 +562,7 @@ function buildServer() {
     "list_voices",
     {
       title: "List Retell voices",
+      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
       description: "List available Retell voices (for picking a voice when adding a language). Optionally filter by accent (e.g. 'French', 'Japanese') or a free-text query (name/provider/accent). NOTE: Retell voices have an accent, not a hard language field, and most are multilingual — accent is a hint, not a guarantee. Validate the final choice with a verification call.",
       inputSchema: {
         accent: z.string().optional().describe("Filter by accent substring, e.g. 'French', 'Spanish', 'Japanese'."),
@@ -567,6 +581,7 @@ function buildServer() {
     "list_languages",
     {
       title: "List call languages",
+      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
       description: "List the call languages this server can conduct calls in: the built-in English base plus any added languages (with their agent, voice, Retell language code, and whether prompt/phrase assets are on the volume). Use to see what's available before place_call or add_language.",
       inputSchema: {},
     },
@@ -577,6 +592,7 @@ function buildServer() {
     "add_language",
     {
       title: "Add a call language",
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       description: "Add a NEW call language at runtime (no redeploy). Two-phase: call with just lang + display_name to get back the base prompt + English phrase block to TRANSLATE; then call again with prompt_text + phrases (translated, preserving every {{variable}} and {placeholder}) to create the language agent. Pick a native-accent voice_id via list_voices (optional — defaults to the English house voice, which you should override for best quality). English cannot be added (it's the built-in base). After it succeeds, run a verification call before production.",
       inputSchema: {
         lang: z.string().regex(/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/, "BCP-47 code, e.g. 'fr', 'es', 'pt-BR'").describe("BCP-47 language code to add (e.g. 'fr', 'es', 'de', 'pt-BR')."),
@@ -600,6 +616,7 @@ function buildServer() {
     "verify_language",
     {
       title: "Verify a call language",
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       description: "Quality-gate a newly added language before production. DRY-RUN by default: returns a review card with the EXACT spoken opening (greeting + your ask + AI disclosure) and voicemail message — composed by the language's agent — plus a native-review checklist. To HEAR it live, pass to:<your phone> and confirm:true and the agent will call you so you can judge accent, etiquette, and the disclosure by ear. For the truest review, pass target-language sample_summary and sample_opening_ask.",
       inputSchema: {
         lang: z.string().describe("The registered language code to verify (e.g. 'fr')."),
@@ -663,6 +680,7 @@ function buildServer() {
     "update_language",
     {
       title: "Update a call language",
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       description: "Change an already-added language: replace its prompt_text and/or phrases (re-translated), and/or change its voice_id, Retell language code, interruption_sensitivity, or stt_mode. Only the provided fields change. Use list_languages to see what's registered.",
       inputSchema: {
         lang: z.string().describe("The registered language code to update (e.g. 'fr')."),
@@ -685,6 +703,7 @@ function buildServer() {
     "remove_language",
     {
       title: "Remove a call language",
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
       description: "Unregister an added language and delete its volume prompt + phrase assets. By default the Retell agent is LEFT in your dashboard (set delete_agent:true to delete it too). English cannot be removed.",
       inputSchema: {
         lang: z.string().describe("The registered language code to remove (e.g. 'fr')."),

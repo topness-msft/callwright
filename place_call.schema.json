@@ -9,6 +9,8 @@
 
     "call_type": {
       "type": "string",
+      "title": "Call type / scenario id",
+      "examples": ["haircut", "restaurant_reservation", "dentist_cleaning", "general_inquiry"],
       "description": "Open-ended scenario id, lowercase snake/kebab (e.g. 'haircut', 'restaurant_reservation', 'dentist_cleaning', 'general_inquiry'). If a matching scenario profile exists, it supplies recommended fields, default flexibility, direction hints, and confirm items. Unknown types fall back to generic behavior."
     },
 
@@ -18,13 +20,14 @@
       "required": ["business_name", "phone_number"],
       "additionalProperties": false,
       "properties": {
-        "business_name": { "type": "string", "description": "Name of the business, used by the agent when speaking." },
+        "business_name": { "type": "string", "title": "Business name", "description": "Name of the business, used by the agent when speaking." },
         "phone_number": {
           "type": "string",
-          "description": "E.164 format, e.g. +15555550199. If the user gives a local format, normalize it and confirm.",
+          "title": "Business phone number (E.164)",
+          "examples": ["+15555550199", "+81312345678"],
           "pattern": "^\\+[1-9]\\d{6,14}$"
         },
-        "timezone": { "type": "string", "description": "IANA tz of the business, e.g. America/New_York. Infer from area code if not given, then confirm." }
+        "timezone": { "type": "string", "title": "Business timezone (IANA)", "examples": ["America/New_York", "Asia/Tokyo"], "description": "IANA tz of the business, e.g. America/New_York. Infer from area code if not given, then confirm." }
       }
     },
 
@@ -34,15 +37,19 @@
       "required": [],
       "additionalProperties": false,
       "properties": {
-        "name": { "type": "string", "description": "Name to give for the reservation/appointment. OPTIONAL — omit for general inquiries where no booking/identity is involved, so the agent does not attach the principal's name to the call." },
+        "name": { "type": "string", "title": "Principal name", "x-pii": true, "description": "Name to give for the reservation/appointment. OPTIONAL — omit for general inquiries where no booking/identity is involved, so the agent does not attach the principal's name to the call." },
         "anonymous": { "type": "boolean", "description": "Set true for a truly nameless call (general inquiries). Suppresses backfill of name/callback_number from config and places the call with NO principal identity. Default false (basics are backfilled for convenience)." },
         "callback_number": {
           "type": "string",
-          "description": "E.164. The agent only shares this if the business asks. Mark in do_not_volunteer if it should never be offered proactively.",
+          "title": "Callback number (E.164)",
+          "x-pii": true,
+          "examples": ["+15555550142"],
           "pattern": "^\\+[1-9]\\d{6,14}$"
         },
         "facts": {
           "type": "object",
+          "title": "Per-call PII subset",
+          "x-pii": true,
           "description": "MINIMAL per-call subset of standing facts about the principal that the agent may share ONLY IF the business asks (never volunteer). Keys are snake_case labels the agent speaks humanized (e.g. service_address, account_number, date_of_birth, member_id, vehicle, insurance_provider, loyalty_number). Values are strings/numbers/booleans. DATA MINIMIZATION: include ONLY what THIS call_type plausibly needs — do NOT dump the user's full profile. The host LLM selects this subset from the user's standing profile and/or connected context MCPs (WorkIQ, Gmail, calendar, CRM). This is the right home for PII: anything identifying belongs here (only-if-asked + surfaced in the read-back), NOT in scenario_details. Distinct from request.scenario_details (non-PII call specifics).",
           "additionalProperties": { "type": ["string", "number", "boolean"] }
         }
@@ -57,10 +64,14 @@
       "properties": {
         "summary": {
           "type": "string",
+          "title": "Request summary",
+          "examples": ["Dinner reservation for 4", "Routine dental cleaning"],
           "description": "One sentence the agent can act on, e.g. 'Dinner reservation for 4'. For appointments, include the service, e.g. 'Routine dental cleaning'."
         },
         "opening_ask": {
           "type": "string",
+          "title": "Opening ask (spoken)",
+          "examples": ["I'm calling to ask whether you have a table for two this Friday at 6 PM.", "金曜日18時に2名で空席があるか伺えますでしょうか。"],
           "description": "OPTIONAL. The first thing the agent says after disclosing it's an AI — leads with the goal/need, e.g. \"I'm calling to confirm an appointment. Could you help me with that?\". If omitted, one is derived from `summary`. Do NOT phrase as 'is now a good time?'."
         },
         "party_size": { "type": "integer", "minimum": 1, "description": "Required for reservations. Number of people." },
@@ -71,8 +82,8 @@
           "required": ["date", "time"],
           "additionalProperties": false,
           "properties": {
-            "date": { "type": "string", "format": "date", "description": "YYYY-MM-DD. Resolve relative dates ('Saturday') against the business timezone and confirm the absolute date." },
-            "time": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$", "description": "24h HH:MM." }
+            "date": { "type": "string", "format": "date", "examples": ["2026-07-10"], "description": "YYYY-MM-DD. Resolve relative dates ('Saturday') against the business timezone and confirm the absolute date." },
+            "time": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$", "examples": ["19:00"], "description": "24h HH:MM." }
           }
         },
         "acceptable_windows": {
@@ -142,19 +153,19 @@
       "description": "Optional per-call overrides of the direction template defaults. Omit to use template defaults.",
       "additionalProperties": false,
       "properties": {
-        "time_flexibility_minutes": { "type": "integer", "minimum": 0 },
-        "disclose_ai": { "type": "boolean", "description": "Default true. Do not set false without a legal reason." },
-        "record_audio": { "type": "boolean", "description": "Default false. If true, agent must speak a consent line." },
-        "max_call_duration_seconds": { "type": "integer", "minimum": 30 },
-        "on_voicemail": { "type": "string", "enum": ["leave_message", "hang_up"] },
+        "time_flexibility_minutes": { "type": "integer", "minimum": 0, "default": 45, "title": "Time flexibility (minutes)" },
+        "disclose_ai": { "type": "boolean", "default": true, "description": "Default true. Do not set false without a legal reason." },
+        "record_audio": { "type": "boolean", "default": false, "description": "Default false. If true, agent must speak a consent line." },
+        "max_call_duration_seconds": { "type": "integer", "minimum": 30, "title": "Max call duration (seconds)" },
+        "on_voicemail": { "type": "string", "enum": ["leave_message", "hang_up"], "default": "leave_message" },
         "retry": {
           "type": "object",
           "description": "Retry-on-no-answer policy. Defaults to exactly 1 retry; never raise max_retries above 1 without an explicit user request (repeated calls are spammy).",
           "additionalProperties": false,
           "properties": {
-            "max_retries": { "type": "integer", "minimum": 0, "maximum": 5, "description": "Number of re-dials on no-answer. Default 1. >1 only on explicit user request." },
-            "on": { "type": "array", "items": { "type": "string", "enum": ["no_answer", "busy", "failed"] } },
-            "delay_seconds": { "type": "integer", "minimum": 0, "maximum": 600 }
+            "max_retries": { "type": "integer", "minimum": 0, "maximum": 5, "default": 1, "description": "Number of re-dials on no-answer. Default 1. >1 only on explicit user request." },
+            "on": { "type": "array", "default": ["no_answer", "busy", "failed"], "items": { "type": "string", "enum": ["no_answer", "busy", "failed"] } },
+            "delay_seconds": { "type": "integer", "minimum": 0, "maximum": 600, "default": 60 }
           }
         }
       }
@@ -165,8 +176,8 @@
       "description": "Optional per-call 'text me when it's done'. Off by default — results are pulled on demand via get_call_outcome. Only set sms:true if the user asks to be notified.",
       "additionalProperties": false,
       "properties": {
-        "sms": { "type": "boolean", "description": "True = send the user an SMS when this call completes." },
-        "to": { "type": "string", "description": "The user's own number to text (E.164). If omitted, uses the saved notify number; if none, ask the user." }
+        "sms": { "type": "boolean", "default": false, "description": "True = send the user an SMS when this call completes." },
+        "to": { "type": "string", "title": "Notify number (E.164)", "x-pii": true, "description": "The user's own number to text (E.164). If omitted, uses the saved notify number; if none, ask the user." }
       }
     }
   }
