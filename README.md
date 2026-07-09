@@ -240,6 +240,7 @@ Add a custom MCP connector with the same URL — header or `?key=` both work.
 | `scenario-profiles.json` | Learning profiles (recommended details per scenario) |
 | `learn.js` / `get-call.js` | CLIs: enrich a profile / fetch a call outcome |
 | `paths.js` | Resolves mutable state paths (honors `CALLWRIGHT_DATA_DIR`) |
+| `scripts/release.ps1` | One-shot release: version bump + test + push + npm & MCP-registry publish |
 | `docs/` | Design specs (add-language, profile-learning) |
 | `webhook/` | Optional serverless Retell→Resend email notifier (independent of the MCP) |
 
