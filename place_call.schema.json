@@ -52,6 +52,12 @@
           "x-pii": true,
           "description": "MINIMAL per-call subset of standing facts about the principal that the agent may share ONLY IF the business asks (never volunteer). Keys are snake_case labels the agent speaks humanized (e.g. service_address, account_number, date_of_birth, member_id, vehicle, insurance_provider, loyalty_number). Values are strings/numbers/booleans. DATA MINIMIZATION: include ONLY what THIS call_type plausibly needs — do NOT dump the user's full profile. The host LLM selects this subset from the user's standing profile and/or connected context MCPs (WorkIQ, Gmail, calendar, CRM). This is the right home for PII: anything identifying belongs here (only-if-asked + surfaced in the read-back), NOT in scenario_details. Distinct from request.scenario_details (non-PII call specifics).",
           "additionalProperties": { "type": ["string", "number", "boolean"] }
+        },
+        "facts_from_store": {
+          "type": "array",
+          "title": "Stored fact keys to resolve at dial time",
+          "description": "OPTIONAL escape hatch. Names stored fact keys (from the user's saved profile) to pull into this call's share-if-asked set WITHOUT the value ever passing through you. Profile-recommended keys are auto-resolved from the store already, so use this only to include a stored key that the matched scenario profile does NOT recommend (e.g. member_id on a general_inquiry). Data minimization still applies: name only what THIS call needs. Values you already have go directly in `facts` instead.",
+          "items": { "type": "string" }
         }
       }
     },

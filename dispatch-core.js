@@ -119,7 +119,7 @@ function deriveWindows(req, flexMin) {
 // `lang` selects the per-language PHRASE block (lang-phrases.json) used for
 // composed helper strings. composeCall has no language conditionals — phrasing
 // is data; this function only injects values.
-function composeCall(job, { lang = "en" } = {}) {
+function composeCall(job, { lang = "en", config = loadConfig() } = {}) {
   const LANG = String(lang || "en").toLowerCase();
   const P = phrasesFor(LANG);
   const profile = loadProfileFor(job.call_type);
@@ -131,7 +131,31 @@ function composeCall(job, { lang = "en" } = {}) {
     .join("   ");
 
   const details = job.scenario_details || {};
-  const facts = (job.principal && job.principal.facts) || {};
+  // Resolve stored facts into the per-call "share-if-asked" set. The store
+  // (config.principal.facts) holds durable PII; a call attaches ONLY the subset
+  // this scenario needs — data minimization — so the raw values never pass
+  // through the calling model. Two eligibility sources:
+  //   - the matched profile's recommended_details keys (auto-resolved), and
+  //   - keys the caller explicitly names in principal.facts_from_store (opt-in
+  //     escape hatch for a non-recommended stored key).
+  // An explicit principal.facts value always wins over the store (no override,
+  // no double-attach); empty stored values are treated as absent.
+  const jobFacts = (job.principal && job.principal.facts) || {};
+  const storedFacts = (config && config.principal && config.principal.facts) || {};
+  const requestedFromStore = Array.isArray(job.principal && job.principal.facts_from_store)
+    ? job.principal.facts_from_store
+    : [];
+  const resolveKeys = new Set([
+    ...(profile?.recommended_details ? Object.keys(profile.recommended_details) : []),
+    ...requestedFromStore,
+  ]);
+  const resolvedFromStore = {};
+  for (const key of resolveKeys) {
+    if (jobFacts[key] != null && jobFacts[key] !== "") continue; // caller value wins
+    const v = storedFacts[key];
+    if (v != null && v !== "") resolvedFromStore[key] = v;
+  }
+  const facts = { ...resolvedFromStore, ...jobFacts };
   const missingRecommended = [];
   if (profile?.recommended_details) {
     for (const [key, why] of Object.entries(profile.recommended_details)) {
@@ -348,7 +372,7 @@ async function placeCall(rawJob, { lang = "en", go = false, testTo = null, agent
   const job = applyConfigBackfill({ ...rawJob }, config);
   const valid = validateJob(job);
   if (!valid.ok) return { ok: false, errors: valid.errors };
-  const composed = composeCall(job, { lang });
+  const composed = composeCall(job, { lang, config });
   // Resolve the agent up-front so the read-back can show it (don't dial yet).
   let agentId = agentOverride;
   if (!agentId) { try { agentId = resolveAgentId(job.call_type, { config, lang }); } catch { agentId = null; } }
