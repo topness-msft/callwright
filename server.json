@@ -37,6 +37,34 @@
           "isRequired": false,
           "isSecret": false,
           "format": "string"
+        },
+        {
+          "name": "CALLWRIGHT_DATA_DIR",
+          "description": "Persistent directory for runtime state such as trigger deduplication",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "CALLWRIGHT_PUBLIC_URL",
+          "description": "Public Callwright base URL used to configure Retell webhook delivery",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "CLAUDE_ROUTINE_URL",
+          "description": "Optional complete Claude cloud Routine /fire endpoint URL",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "CLAUDE_ROUTINE_TOKEN",
+          "description": "Optional dedicated bearer token for the configured Claude Routine trigger",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
         }
       ]
     }

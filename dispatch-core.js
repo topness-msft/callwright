@@ -268,6 +268,10 @@ function composeCall(job, { lang = "en", config = loadConfig() } = {}) {
   // webhook can text the user. Default off (results pulled via get_call_outcome).
   const notifySms = !!(job.notify && job.notify.sms);
   const notifyVars = { notify_sms: notifySms ? "1" : "0", notify_to: (job.notify && job.notify.to) || "" };
+  const ticktickTaskId = String(job.tracking?.ticktick_task_id || "").trim();
+  const metadata = ticktickTaskId
+    ? { source: "ticktick", ticktick_task_id: ticktickTaskId, schema_version: 1 }
+    : undefined;
 
   const vars = {
     business_name: job.target.business_name,
@@ -305,7 +309,7 @@ function composeCall(job, { lang = "en", config = loadConfig() } = {}) {
   if (job.principal && job.principal.callback_number) piiKeys.push("callback_number");
   piiKeys.push(...Object.keys(facts).filter((k) => facts[k] != null && facts[k] !== ""));
 
-  return { profile, flex, windows, windowsStr, missingRecommended, detailSentences, vars, piiKeys, lang: LANG, phrases: P, retryPolicy };
+  return { profile, flex, windows, windowsStr, missingRecommended, detailSentences, vars, metadata, piiKeys, lang: LANG, phrases: P, retryPolicy };
 }
 
 // Resolve agent: language variant (config.agents.by_lang[lang]) -> agents.json
@@ -363,7 +367,7 @@ function buildReadback(job, composed, { testTo, agentId, agentVersion } = {}) {
 }
 
 // Place the outbound call via Retell. Returns the API response (has call_id).
-async function dispatchCall({ key, from, agentId, agentVersion, toNumber, businessNumber, vars }) {
+async function dispatchCall({ key, from, agentId, agentVersion, toNumber, businessNumber, vars, metadata }) {
   if (!key) throw new Error("Missing Retell API key.");
   if (!from) throw new Error("Missing from-number.");
   if (!agentId) throw new Error("Missing agent id.");
@@ -378,6 +382,7 @@ async function dispatchCall({ key, from, agentId, agentVersion, toNumber, busine
       override_agent_id: agentId,
       ...(agentVersion != null ? { override_agent_version: agentVersion } : {}),
       retell_llm_dynamic_variables: vars,
+      ...(metadata ? { metadata } : {}),
     }),
   });
   const text = await resp.text();
@@ -398,6 +403,7 @@ async function redialFromCall(call, { key = process.env.RETELL_API_KEY, attempt 
     toNumber: call.to_number,
     businessNumber: call.to_number,
     vars,
+    metadata: call.metadata || undefined,
   });
 }
 
@@ -426,7 +432,7 @@ async function placeCall(rawJob, { lang = "en", go = false, testTo = null, agent
   const fromNumber = from || process.env.RETELL_FROM_NUMBER || config.retell?.from_number;
   const call = await dispatchCall({
     key, from: fromNumber, agentId, agentVersion, toNumber: testTo,
-    businessNumber: job.target.phone_number, vars: composed.vars,
+    businessNumber: job.target.phone_number, vars: composed.vars, metadata: composed.metadata,
   });
   return { ok: true, dryRun: false, readback, composed, call };
 }

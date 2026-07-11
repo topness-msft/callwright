@@ -19,6 +19,7 @@
     "learn.js",
     "notify-core.js",
     "outcome-core.js",
+    "routine-core.js",
     "paths.js",
     "retry-core.js",
     "setup-agent-from.js",

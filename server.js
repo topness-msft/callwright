@@ -50,12 +50,15 @@ const learn = require("./learn-core");
 const retry = require("./retry-core");
 const notify = require("./notify-core");
 const outcome = require("./outcome-core");
+const routine = require("./routine-core");
 const paths = require("./paths");
 
 const RETELL_BASE = "https://api.retellai.com";
 const PORT = parseInt(process.env.PORT || "8787", 10);
 const AUTH_TOKEN = process.env.MCP_AUTH_TOKEN || "";
 const RETELL_KEY = process.env.RETELL_API_KEY || "";
+const ROUTINE_URL = process.env.CLAUDE_ROUTINE_URL || "";
+const ROUTINE_TOKEN = process.env.CLAUDE_ROUTINE_TOKEN || "";
 // Public base URL of THIS server (e.g. https://virtuphil.fly.dev), used to set
 // the agents' webhook_url so Retell posts call_analyzed back here for auto-learn.
 const PUBLIC_URL = (process.env.CALLWRIGHT_PUBLIC_URL || "").replace(/\/+$/, "");
@@ -232,6 +235,10 @@ function buildServer() {
           sms: z.boolean().optional().describe("Set true ONLY if the user asks to be notified/texted when this call is done. Default false — results are pulled on demand via get_call_outcome."),
           to: z.string().optional().describe("The USER'S OWN number to text (E.164). If omitted, the saved notify number is used; if none is saved, ask the user for their number first."),
         }).optional().describe("Optional per-call 'text me when it's done'. Off by default (pull-based)."),
+        tracking: z.object({
+          ticktick_task_id: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/)
+            .describe("Opaque originating TickTick task ID. Stored only as Retell metadata; never include task text or PII."),
+        }).optional().describe("Link this call to its originating TickTick task so call_analyzed can wake the configured Claude Routine."),
         lang: z.string().regex(/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/, "must be a BCP-47 language code, e.g. 'en', 'ja', 'fr', 'zh-CN'").optional().describe("Language to conduct the call in, as a BCP-47 code (e.g. 'en', 'ja', 'fr'). The call routes to the matching language agent (registered in config.agents.by_lang) and composes opening/voicemail text in that language. Currently fully supported: 'en' and 'ja'; other codes only work once a language agent has been added for them (see add_language). Default 'en'. If you omit it for a +81 number, the server assumes 'ja'."),
         test_to: z.string().optional().describe("Route the actual dial to this number (testing) while keeping the real business number in the read-back."),
         agent_version: z.union([z.number().int().min(0), z.string().min(1).max(20)]).optional()
@@ -797,6 +804,14 @@ app.post(WEBHOOK_PATH, async (req, res) => {
           updateRetry((x) => x.parent_call_id === entry.parent_call_id && x.attempt === entry.attempt && x.status === "scheduled",
             { status: "failed", error: e.message });
           console.error("retry redial failed:", e.message);
+          const wake = await routine.triggerRoutine(call, {
+            url: ROUTINE_URL,
+            token: ROUTINE_TOKEN,
+            allowRetryPending: true,
+          });
+          if (!wake.triggered && !["not_configured", "duplicate"].includes(wake.reason)) {
+            console.error(`Claude Routine retry-failure wake-up skipped (${wake.reason}${wake.error ? ": " + wake.error : ""})`);
+          }
         }
       };
       if (d.delaySeconds > 0) setTimeout(fire, d.delaySeconds * 1000).unref?.();
@@ -823,25 +838,47 @@ app.post(WEBHOOK_PATH, async (req, res) => {
       return r;
     } catch (e) { console.error("notify error:", e.message); return { sent: false, error: e.message }; }
   })();
+  const routineResult = (async () => {
+    try {
+      const r = await routine.triggerRoutine(call, {
+        url: ROUTINE_URL,
+        token: ROUTINE_TOKEN,
+      });
+      if (r.triggered) {
+        console.log(`Claude Routine triggered for call ${call.call_id}, TickTick task ${r.ticktick_task_id}`);
+      } else if (!["not_requested", "retry_pending", "not_configured", "duplicate"].includes(r.reason)) {
+        console.error(`Claude Routine trigger skipped (${r.reason}${r.error ? ": " + r.error : ""})`);
+      }
+      return r;
+    } catch (e) {
+      console.error("routine trigger error:", e.message);
+      return { triggered: false, reason: "unexpected_error", error: e.message };
+    }
+  })();
 
   try {
     const profiles = loadProfiles();
     const candidates = loadCandidates();
     const r = learn.applyLearning(call, { profiles, candidates, minCount: 2, N: 2 });
     const notified = await notifyResult;
+    const routineTriggered = await routineResult;
     const notify_sms = notified.sent ? { sent: true, to: notified.to } : (notified.reason === "not_requested" ? undefined : { sent: false, reason: notified.reason, error: notified.error });
+    const routine_trigger = routineTriggered.triggered
+      ? { triggered: true, ticktick_task_id: routineTriggered.ticktick_task_id }
+      : (routineTriggered.reason === "not_requested" ? undefined : { triggered: false, reason: routineTriggered.reason, error: routineTriggered.error });
     if (r.mode === "enriched") {
       if (!r.skipped) saveProfiles(profiles);
-      return res.status(200).json({ auto_learned: "enriched", profile: r.profile, added: r.added, skipped: r.skipped || false, notify_sms });
+      return res.status(200).json({ auto_learned: "enriched", profile: r.profile, added: r.added, skipped: r.skipped || false, notify_sms, routine_trigger });
     }
     if (r.mode === "staged") {
       saveCandidates(candidates);
-      return res.status(200).json({ auto_learned: "staged", scenario: r.scenario, seen: r.seen, ready_to_propose: r.ready_to_propose, notify_sms });
+      return res.status(200).json({ auto_learned: "staged", scenario: r.scenario, seen: r.seen, ready_to_propose: r.ready_to_propose, notify_sms, routine_trigger });
     }
-    return res.status(200).json({ auto_learned: false, reason: r.reason, notify_sms });
+    return res.status(200).json({ auto_learned: false, reason: r.reason, notify_sms, routine_trigger });
   } catch (e) {
     console.error("auto-learn error:", e.message);
     await notifyResult;
+    await routineResult;
     return res.status(200).json({ auto_learned: false, error: e.message }); // 200 so Retell doesn't retry forever
   }
 });

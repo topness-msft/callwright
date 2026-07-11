@@ -188,6 +188,22 @@
         "sms": { "type": "boolean", "default": false, "description": "True = send the user an SMS when this call completes." },
         "to": { "type": "string", "title": "Notify number (E.164)", "x-pii": true, "description": "The user's own number to text (E.164). If omitted, uses the saved notify number; if none, ask the user." }
       }
+    },
+
+    "tracking": {
+      "type": "object",
+      "description": "Optional opaque linkage to the task that originated this call. Stored as Retell metadata only and never injected into the voice agent's prompt.",
+      "required": ["ticktick_task_id"],
+      "additionalProperties": false,
+      "properties": {
+        "ticktick_task_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9_-]{1,128}$",
+          "description": "The originating TickTick task ID. Pass the opaque ID only; never include task text or other personal data."
+        }
+      }
     }
   }
 }

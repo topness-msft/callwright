@@ -46,6 +46,7 @@ When adding behavior, put logic in the relevant `*-core.js` and keep `server.js`
 - **Retell** REST API (`https://api.retellai.com`) via `fetch`; `RETELL_API_KEY` stays server-side only. `place_call.schema.json` is the AJV-validated job contract the host LLM fills.
 - **Auth:** one `MCP_AUTH_TOKEN` bearer (header or `?key=` query param). Unset → loopback-only (local dev).
 - **Auto-learn webhook:** if `CALLWRIGHT_PUBLIC_URL` is set, agents post `call_analyzed` back to `POST /webhook/retell` (signature-verified) to enrich profiles and drive retries.
+- **TickTick task linkage:** when a call originates from a TickTick task, pass its opaque ID as `tracking.ticktick_task_id` on both the dry-run and confirmed `place_call` calls. Callwright stores it only in Retell metadata. If `CLAUDE_ROUTINE_URL` and `CLAUDE_ROUTINE_TOKEN` are configured, the final analyzed call wakes that Routine immediately. Never put task text or PII in tracking metadata.
 - `webhook/` is an independent, not-wired-by-default serverless Retell→Resend email notifier — separate from the MCP server.
 
 Design specs live in `docs/` (`add-language-spec.md`, `profile-learning-spec.md`) — consult them before changing language or learning behavior.

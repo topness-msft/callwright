@@ -32,6 +32,7 @@ module.exports = {
   PROFILES_PATH: path.join(DATA_DIR, "scenario-profiles.json"),
   CANDIDATES_PATH: path.join(DATA_DIR, "scenario-candidates.json"),
   RETRIES_PATH: path.join(DATA_DIR, "retries.json"),
+  ROUTINE_TRIGGERS_PATH: path.join(DATA_DIR, "routine-triggers.json"),
   volumePath,
   resolveAsset,
 };
