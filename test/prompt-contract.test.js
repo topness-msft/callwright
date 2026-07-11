@@ -17,11 +17,12 @@ test("virtual receptionists receive routing only before a human transfer", () =>
   assert.match(prompt, /do not ask the substantive question/i);
 });
 
-test("a transferred human gets disclosure, a pause, then one unresolved ask", () => {
-  assert.match(prompt, /give only the brief AI disclosure/i);
-  assert.match(prompt, /stop and wait for the new person to respond/i);
-  assert.match(prompt, /first unresolved substantive question/i);
-  assert.match(prompt, /never replay the routing request or the full\s+original opener/i);
+test("a transferred human gets one unresolved ask, then disclosure, then a pause", () => {
+  assert.match(prompt, /ask only the first unresolved substantive question/i);
+  assert.match(prompt, /immediately add the brief\s+AI disclosure/i);
+  assert.match(prompt, /then\s+STOP and wait for the new person to respond/i);
+  assert.doesNotMatch(prompt, /give only the brief AI disclosure/i);
+  assert.match(prompt, /never replay the\s+routing request or the full original opener/i);
 });
 
 test("the first-human opening rule excludes post-transfer pickups", () => {
@@ -34,7 +35,8 @@ test("Japanese prompt preserves the same virtual-receptionist transfer contract"
   assert.match(japanesePrompt, /最初に応対した相手が人間の場合のみ/);
   assert.match(japanesePrompt, /対話型の自動受付/);
   assert.match(japanesePrompt, /取次依頼だけ/);
-  assert.match(japanesePrompt, /AIである旨の\s*短い開示だけ/);
-  assert.match(japanesePrompt, /最初の未解決の質問だけ/);
+  assert.match(japanesePrompt, /最初の未解決の\s*質問だけ/);
+  assert.match(japanesePrompt, /その直後にAIである旨の短い開示/);
+  assert.match(japanesePrompt, /そこで話すのをやめ/);
   assert.match(japanesePrompt, /冒頭文全体を繰り返さない/);
 });
