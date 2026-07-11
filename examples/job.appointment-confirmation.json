@@ -13,7 +13,7 @@
   },
   "request": {
     "summary": "Confirm a service appointment",
-    "opening_ask": "I'm calling to confirm a service appointment. Could you help me with that?",
+    "opening_ask": "Could you help me confirm a service appointment?",
     "preferred": { "date": "2026-07-03", "time": "09:00" }
   },
   "scenario_details": {

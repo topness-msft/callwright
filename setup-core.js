@@ -14,6 +14,7 @@
 //   - guard: tell a caller (LLM) when setup is incomplete before place_call
 
 const fs = require("fs");
+const crypto = require("crypto");
 const paths = require("./paths");
 
 const BASE = "https://api.retellai.com";
@@ -30,8 +31,24 @@ function webhookUrl() {
 
 // Generic post-call analysis (single source of truth; init/setup-agent reuse).
 const POST_CALL_ANALYSIS = [
-  { type: "enum", name: "status", description: "Final result of the call.",
-    choices: ["booked", "failed", "voicemail", "callback_needed", "escalated"] },
+  {
+    type: "system-presets",
+    name: "call_successful",
+    required: true,
+    description:
+      "True only when the agent actually completed the stated objective using a reliable answer or commitment. " +
+      "A connected call alone is not successful. A misunderstood or merely adjacent answer is not success. " +
+      "If the objective explicitly requires human confirmation, an automated answer alone is not sufficient.",
+  },
+  {
+    type: "enum",
+    name: "status",
+    description:
+      "Final result. Use booked only when an actual reservation, appointment, or commitment was created. " +
+      "Use completed when the objective was achieved without a booking, including reliable information regardless " +
+      "of whether the answer was yes or no. Use failed when no reliable answer or required commitment was obtained.",
+    choices: ["booked", "completed", "failed", "voicemail", "callback_needed", "escalated"],
+  },
   { type: "string", name: "booked_date", description: "Agreed date, or empty." },
   { type: "string", name: "booked_time", description: "Agreed time, or empty." },
   { type: "string", name: "confirmation_ref", description: "Any confirmation name/number." },
@@ -40,6 +57,124 @@ const POST_CALL_ANALYSIS = [
   { type: "string", name: "unanswered_questions",
     description: "List any questions the business asked that the agent could NOT answer or had to defer to the principal. Empty if none." },
 ];
+
+function stableJson(value) {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function buildPostCallAnalysisPatch(agent) {
+  const current = (agent && agent.post_call_analysis_data) || [];
+  const managedNames = new Set(POST_CALL_ANALYSIS.map((field) => field.name));
+  const customFields = current.filter((field) => field && !managedNames.has(field.name));
+  const desired = [...POST_CALL_ANALYSIS, ...customFields];
+  return stableJson(current) === stableJson(desired)
+    ? null
+    : { post_call_analysis_data: desired };
+}
+
+function sha256(value) {
+  return crypto.createHash("sha256").update(String(value || ""), "utf8").digest("hex");
+}
+
+function buildPromptAnalysisPlan(agent, llm, prompt) {
+  const desiredPrompt = String(prompt || "");
+  const llmPatch = llm && llm.general_prompt === desiredPrompt
+    ? {}
+    : { general_prompt: desiredPrompt };
+  const agentPatch = buildPostCallAnalysisPatch(agent) || {};
+  const events = Array.isArray(agent && agent.webhook_events) ? agent.webhook_events : [];
+  const warnings = [];
+  if (agent && agent.webhook_url && !events.includes("call_analyzed")) {
+    warnings.push("agent_missing_call_analyzed_webhook_event");
+  }
+  return {
+    target: {
+      agent_id: agent && agent.agent_id,
+      agent_version: agent && (agent.version ?? null),
+      agent_is_published: agent && (agent.is_published ?? null),
+      llm_id: llm && llm.llm_id,
+      llm_version: llm && (llm.version ?? null),
+      response_engine_version: agent && agent.response_engine
+        ? (agent.response_engine.version ?? null)
+        : null,
+    },
+    changes: {
+      llm: Object.keys(llmPatch),
+      agent: Object.keys(agentPatch),
+    },
+    prompt: {
+      changed: Boolean(llmPatch.general_prompt),
+      current_sha256: sha256(llm && llm.general_prompt),
+      desired_sha256: sha256(desiredPrompt),
+    },
+    analysis: {
+      changed: Boolean(agentPatch.post_call_analysis_data),
+      current_fields: ((agent && agent.post_call_analysis_data) || []).map((field) => field.name),
+      desired_fields: POST_CALL_ANALYSIS.map((field) => field.name),
+    },
+    warnings,
+    llmPatch,
+    agentPatch,
+  };
+}
+
+function withVersion(path, version) {
+  return `${path}?version=${encodeURIComponent(String(version))}`;
+}
+
+async function syncPromptAndAnalysis(key, agentId, prompt, {
+  api = apiCall,
+  dryRun = false,
+  agentVersion = "latest",
+} = {}) {
+  const initialAgent = await api(key, "GET", withVersion(`/get-agent/${agentId}`, agentVersion));
+  const resolvedAgentVersion = initialAgent.version;
+  if (!Number.isInteger(resolvedAgentVersion)) {
+    throw new Error("Retell agent response did not include a numeric version.");
+  }
+  const agent = initialAgent;
+  const llmId = agent.response_engine && agent.response_engine.llm_id;
+  if (!llmId) throw new Error("Agent has no retell-llm engine; cannot update prompt.");
+  const llmVersion = agent.response_engine.version;
+  if (!Number.isInteger(llmVersion)) {
+    throw new Error("Agent response engine did not include a numeric LLM version.");
+  }
+  const llm = await api(key, "GET", withVersion(`/get-retell-llm/${llmId}`, llmVersion));
+  if (llm.version !== llmVersion) {
+    throw new Error(`LLM version mismatch: agent uses ${llmVersion}, Retell returned ${llm.version}.`);
+  }
+  const plan = buildPromptAnalysisPlan(agent, llm, prompt);
+
+  if (dryRun) return { ...plan, applied: false, verified: false };
+
+  if (plan.changes.llm.length) {
+    await api(key, "PATCH", withVersion(`/update-retell-llm/${llmId}`, llmVersion), plan.llmPatch);
+  }
+  if (plan.changes.agent.length) {
+    await api(key, "PATCH", withVersion(`/update-agent/${agentId}`, resolvedAgentVersion), plan.agentPatch);
+  }
+
+  if (!plan.changes.llm.length && !plan.changes.agent.length) {
+    return { ...plan, applied: false, verified: true };
+  }
+
+  const updatedAgent = await api(key, "GET", withVersion(`/get-agent/${agentId}`, resolvedAgentVersion));
+  const updatedLlm = await api(key, "GET", withVersion(`/get-retell-llm/${llmId}`, llmVersion));
+  if (updatedLlm.version !== llmVersion) {
+    throw new Error(`LLM version mismatch after update: expected ${llmVersion}, got ${updatedLlm.version}.`);
+  }
+  const remaining = buildPromptAnalysisPlan(updatedAgent, updatedLlm, prompt);
+  if (remaining.changes.llm.length || remaining.changes.agent.length) {
+    const error = new Error("Retell prompt/analysis update did not converge.");
+    error.remainingChanges = remaining.changes;
+    throw error;
+  }
+  return { ...plan, applied: true, verified: true };
+}
 
 // ---- low-level ----
 async function apiCall(key, method, path, body) {
@@ -292,6 +427,7 @@ function guardPlaceCall(config = loadConfig()) {
 
 module.exports = {
   BASE, CONFIG_PATH, AGENTS_PATH, DEFAULT_PROMPT_FILE, POST_CALL_ANALYSIS,
+  buildPostCallAnalysisPatch, buildPromptAnalysisPlan, syncPromptAndAnalysis,
   apiCall, loadConfig, saveConfig, loadPromptText, webhookUrl,
   verifyKey, listAgents, listNumbers, resolveFromNumber, ensureGenericAgent, applyInfra,
   detectLanguageAgents, setPrincipal, setupStatus, guardPlaceCall,

@@ -110,3 +110,126 @@ test("empty stored value is treated as absent (does not resolve, still warns)", 
     "an empty stored value still counts as missing"
   );
 });
+
+test("opening validator accepts one short question", () => {
+  assert.deepEqual(
+    dc.validateOpeningAsk("Could you confirm whether the gym has a Peloton bike?"),
+    { ok: true, value: "Could you confirm whether the gym has a Peloton bike?", errors: [] }
+  );
+});
+
+test("opening validator rejects bundled, multiline, and list-shaped asks", () => {
+  const bundled = dc.validateOpeningAsk(
+    "Could you connect me to the gym? Can you also confirm whether it has a Peloton bike?"
+  );
+  assert.equal(bundled.ok, false);
+  assert.ok(bundled.errors.includes("opening_multiple_questions"));
+
+  const multiline = dc.validateOpeningAsk("Please connect me to the gym.\nThen confirm the equipment.");
+  assert.ok(multiline.errors.includes("opening_multiline"));
+
+  const list = dc.validateOpeningAsk("- Connect me to the gym");
+  assert.ok(list.errors.includes("opening_list_format"));
+
+  const sequenced = dc.validateOpeningAsk(
+    "I'm checking whether the repair parts arrived, and hoping to schedule the repair visit. Could you help with that?"
+  );
+  assert.ok(sequenced.errors.includes("opening_multiple_steps"));
+
+  const routed = dc.validateOpeningAsk(
+    "Could you connect me to the gym to confirm whether it has a Peloton?"
+  );
+  assert.ok(routed.errors.includes("opening_routing_bundle"));
+  assert.ok(dc.validateOpeningAsk(
+    "Please connect me to the gym. Does it have a Peloton?"
+  ).errors.includes("opening_routing_bundle"));
+  assert.ok(dc.validateOpeningAsk(
+    "Could you tell me your hours and whether walk-ins are allowed?"
+  ).errors.includes("opening_multiple_steps"));
+
+  const japanese = dc.validateOpeningAsk(
+    "レストランの営業時間と、予約なしでも利用できるかを教えていただけますでしょうか。"
+  );
+  assert.ok(japanese.errors.includes("opening_multiple_steps"));
+  assert.ok(dc.validateOpeningAsk(
+    "レストランに繋いでください。営業時間を教えていただけますか？"
+  ).errors.includes("opening_routing_bundle"));
+  assert.ok(dc.validateOpeningAsk(
+    "営業時間と予約なしで利用できるか教えてください。"
+  ).errors.includes("opening_multiple_steps"));
+});
+
+test("placeCall rejects an overlong opener before dry-run or dial", async () => {
+  const job = baseJob({
+    request: {
+      summary: "Confirm whether the gym has a Peloton bike",
+      opening_ask: "Please connect me with a person at the front desk or health club because I have a detailed question about whether the fitness center has a Peloton stationary indoor spin bike among its cardio equipment, rather than a rental bicycle.",
+      preferred: { date: "2026-07-10", time: "10:00" },
+    },
+  });
+
+  for (const go of [false, true]) {
+    const result = await dc.placeCall(job, {
+      go,
+      key: "not-used",
+      from: "+15555550100",
+      agentOverride: "agent_not_used",
+    });
+    assert.equal(result.ok, false);
+    assert.ok(result.errors.some((error) => /180|opening_too_long/.test(error)));
+  }
+});
+
+test("automatic redial rejects an unsafe stored opener before fetch", async () => {
+  const originalFetch = global.fetch;
+  let fetched = false;
+  global.fetch = async () => {
+    fetched = true;
+    throw new Error("must not fetch");
+  };
+
+  try {
+    await assert.rejects(
+      dc.redialFromCall({
+        from_number: "+15555550100",
+        to_number: "+15555550199",
+        agent_id: "agent_1",
+        retell_llm_dynamic_variables: {
+          opening_ask: "x".repeat(181),
+          retry_max: "1",
+          retry_attempt: "0",
+          retry_on: "no_answer",
+          retry_delay: "0",
+        },
+      }, { key: "key", attempt: 1 }),
+      /opening_too_long/
+    );
+    assert.equal(fetched, false);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test("dispatch pins the requested Retell agent version", async () => {
+  const originalFetch = global.fetch;
+  let body;
+  global.fetch = async (_url, options) => {
+    body = JSON.parse(options.body);
+    return { ok: true, text: async () => JSON.stringify({ call_id: "call_1" }) };
+  };
+
+  try {
+    await dc.dispatchCall({
+      key: "key",
+      from: "+15555550100",
+      agentId: "agent_1",
+      agentVersion: 3,
+      businessNumber: "+15555550199",
+      vars: { opening_ask: "Could you confirm whether the gym has a Peloton?" },
+    });
+    assert.equal(body.override_agent_id, "agent_1");
+    assert.equal(body.override_agent_version, 3);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});

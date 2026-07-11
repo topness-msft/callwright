@@ -49,6 +49,7 @@ const lang = require("./lang-core");
 const learn = require("./learn-core");
 const retry = require("./retry-core");
 const notify = require("./notify-core");
+const outcome = require("./outcome-core");
 const paths = require("./paths");
 
 const RETELL_BASE = "https://api.retellai.com";
@@ -76,6 +77,7 @@ async function retell(method, path, body) {
 function summarizeCall(call) {
   const a = call.call_analysis || {};
   return {
+    outcome: outcome.resolveOutcome(call),
     call_id: call.call_id,
     dashboard: `https://dashboard.retellai.com/call-history?history=${call.call_id}`,
     status: call.call_status,
@@ -203,7 +205,8 @@ function buildServer() {
         }).optional(),
         request: z.object({
           summary: z.string().describe("Short internal objective for logging/profiles (e.g. 'Availability inquiry for 2, Fri 18:00'). NOT spoken verbatim — keep it brief; the spoken line is opening_ask."),
-          opening_ask: z.string().describe("The exact sentence the agent SPEAKS to state why it's calling. Write a complete, natural, polite sentence in the call's language (Japanese if lang='ja'). It is placed between a warm greeting and the AI disclosure, so do NOT include a greeting or the AI disclosure here — just the purpose/ask. Example (ja): '金曜日18時に2名で空席があるか伺えますでしょうか。' Example (en): 'I'm calling to ask whether you have a table for two this Friday at 6 PM.'"),
+          opening_ask: z.string().trim().min(1).max(180).regex(/^[^\r\n]+$/)
+            .describe("The exact short purpose or question spoken after the greeting and before the AI disclosure. Write one question or request only, maximum 180 characters, in the call's language. Do NOT include a greeting, disclosure, background, clarification, transfer request plus substantive question, or second step."),
           party_size: z.number().int().optional(),
           max_party_size: z.number().int().optional(),
           preferred: z.object({ date: z.string().describe("YYYY-MM-DD"), time: z.string().describe("HH:MM 24h") }),
@@ -231,11 +234,13 @@ function buildServer() {
         }).optional().describe("Optional per-call 'text me when it's done'. Off by default (pull-based)."),
         lang: z.string().regex(/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/, "must be a BCP-47 language code, e.g. 'en', 'ja', 'fr', 'zh-CN'").optional().describe("Language to conduct the call in, as a BCP-47 code (e.g. 'en', 'ja', 'fr'). The call routes to the matching language agent (registered in config.agents.by_lang) and composes opening/voicemail text in that language. Currently fully supported: 'en' and 'ja'; other codes only work once a language agent has been added for them (see add_language). Default 'en'. If you omit it for a +81 number, the server assumes 'ja'."),
         test_to: z.string().optional().describe("Route the actual dial to this number (testing) while keeping the real business number in the read-back."),
+        agent_version: z.union([z.number().int().min(0), z.string().min(1).max(20)]).optional()
+          .describe("Advanced testing/admin option: pin this call to an exact Retell agent version or tag. Omit for normal calls."),
         confirm: z.boolean().optional().describe("Must be true to actually dial. Omit/false = dry-run read-back only."),
       },
     },
     async (args) => {
-      const { lang: langArg, test_to = null, confirm = false, ...job } = args;
+      const { lang: langArg, test_to = null, agent_version = null, confirm = false, ...job } = args;
       // Language: use the explicit arg if given; otherwise infer a safe default
       // from the target country code (+81 -> Japanese) so a Japanese call still
       // routes correctly even if the model forgets to set lang. Defaults to en.
@@ -278,7 +283,7 @@ function buildServer() {
 
       try {
         const result = await core.placeCall(job, {
-          lang, go: confirm, testTo: test_to, key: RETELL_KEY,
+          lang, go: confirm, testTo: test_to, agentVersion: agent_version, key: RETELL_KEY,
         });
         if (!result.ok) return errText({ validation_errors: result.errors });
         if (result.dryRun) {
@@ -311,7 +316,7 @@ function buildServer() {
     {
       title: "Get call outcome",
       annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
-      description: "Fetch a call's outcome, post-call analysis, and transcript by call_id. Use after place_call (give it ~30-60s to complete + analyze).",
+      description: "Fetch a call's outcome, post-call analysis, and transcript by call_id. The `outcome` object is authoritative when Retell's raw success boolean conflicts with custom analysis. Use after place_call (give it ~30-60s to complete + analyze).",
       inputSchema: { call_id: z.string() },
     },
     async ({ call_id }) => {
@@ -336,6 +341,7 @@ function buildServer() {
         const resp = await retell("POST", "/v3/list-calls", { limit, sort_order: "descending" });
         const arr = Array.isArray(resp) ? resp : (resp.items || resp.calls || []);
         return text(arr.map((c) => ({
+          outcome: outcome.resolveOutcome(c),
           call_id: c.call_id, status: c.call_status, to: c.to_number,
           when: c.start_timestamp, status_detail: c.call_analysis?.custom_analysis_data?.status,
         })));

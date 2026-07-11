@@ -76,9 +76,12 @@
         },
         "opening_ask": {
           "type": "string",
+          "minLength": 1,
+          "maxLength": 180,
+          "pattern": "^[^\\r\\n]+$",
           "title": "Opening ask (spoken)",
           "examples": ["I'm calling to ask whether you have a table for two this Friday at 6 PM.", "金曜日18時に2名で空席があるか伺えますでしょうか。"],
-          "description": "OPTIONAL. The first thing the agent says after disclosing it's an AI — leads with the goal/need, e.g. \"I'm calling to confirm an appointment. Could you help me with that?\". If omitted, one is derived from `summary`. Do NOT phrase as 'is now a good time?'."
+          "description": "OPTIONAL. One short purpose or question spoken after the greeting and before the AI disclosure. Maximum 180 characters, one question only, with no greeting, disclosure, background, clarification, or second step. If omitted, one is derived from `summary`. Do NOT phrase as 'is now a good time?'."
         },
         "party_size": { "type": "integer", "minimum": 1, "description": "Required for reservations. Number of people." },
         "max_party_size": { "type": "integer", "minimum": 1, "description": "Negotiation ceiling; agent will not accept a larger booking. Defaults to party_size if omitted." },

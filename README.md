@@ -75,6 +75,8 @@ You (chat) --> Host LLM --gathers context from other MCPs--> shapes a place_call
 
 `place_call` is fire-and-forget and **gated**: the first call returns a read-back (including the PII footprint); you dial only after confirming with `confirm:true`.
 
+`get_call_outcome` returns a canonical `outcome` object. Its custom-analysis-first status is authoritative when Retell's built-in `call_successful` signal disagrees; both raw signals remain available for diagnosis. Successful informational calls use `completed`, while `booked` is reserved for an actual reservation, appointment, or commitment.
+
 ---
 
 ## Retell setup (prerequisites)

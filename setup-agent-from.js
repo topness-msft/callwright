@@ -9,6 +9,7 @@
 // Env: RETELL_API_KEY  (no phone number needed)
 
 const fs = require("fs");
+const setup = require("./setup-core");
 
 const API_KEY = process.env.RETELL_API_KEY;
 if (!API_KEY) { console.error("Missing RETELL_API_KEY."); process.exit(1); }
@@ -32,20 +33,6 @@ function loadPrompt(file) {
   const cut = raw.indexOf("# ---");
   return (cut > -1 ? raw.slice(0, cut) : raw).trim();
 }
-
-// Generic post-call analysis (scenario-agnostic).
-const postCallAnalysis = [
-  { type: "enum", name: "status",
-    description: "Final result of the call.",
-    choices: ["booked", "failed", "voicemail", "callback_needed", "escalated"] },
-  { type: "string", name: "booked_date", description: "Agreed date, or empty." },
-  { type: "string", name: "booked_time", description: "Agreed time, or empty." },
-  { type: "string", name: "confirmation_ref", description: "Any confirmation name/number." },
-  { type: "boolean", name: "accommodations_ok", description: "Were special requests accepted." },
-  { type: "string", name: "unmet_items", description: "Anything not achieved, or why it failed." },
-  { type: "string", name: "unanswered_questions",
-    description: "List any questions the business asked that the agent could NOT answer or had to defer to the principal (e.g. 'what type of haircut', 'preferred stylist'). Empty if none." },
-];
 
 async function api(path, body) {
   const resp = await fetch(BASE + path, {
@@ -80,7 +67,7 @@ async function api(path, body) {
     max_call_duration_ms: 300000,
     interruption_sensitivity: 0.9,
     voicemail_option: { action: { type: "static_text", text: VOICEMAIL_TEXT } },
-    post_call_analysis_data: postCallAnalysis,
+    post_call_analysis_data: setup.POST_CALL_ANALYSIS,
     webhook_events: ["call_started", "call_ended", "call_analyzed"],
   };
   if (VOICE_MODEL) agentBody.voice_model = VOICE_MODEL;

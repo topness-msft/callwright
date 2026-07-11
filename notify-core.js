@@ -8,6 +8,7 @@
 // a Retell number with SMS capability (KYC-gated).
 
 const setup = require("./setup-core");
+const outcome = require("./outcome-core");
 
 const SMS_AGENT_PROMPT =
   "You are an SMS notifier for a personal assistant. Your ONLY job is to send a single " +
@@ -25,12 +26,13 @@ function buildCallSms(call) {
   const c = a.custom_analysis_data || {};
   const business = v.business_name || (call && call.to_number) || "the business";
   const objective = v.objective || v.objective_detail || "";
-  const status = c.status || (a.call_successful === false ? "failed" : (a.call_successful ? "completed" : "completed"));
+  const status = outcome.resolveOutcome(call).status;
   const emoji = STATUS_EMOJI[status] || "📞";
 
   const phrase = {
     booked: "booked", completed: "done", voicemail: "left a voicemail",
     callback_needed: "callback needed", escalated: "escalated", failed: "not completed",
+    unknown: "outcome unknown",
   }[status] || status;
 
   const details = [];

@@ -6,6 +6,7 @@
 // Run:    node get-call.js <call_id>
 
 const API_KEY = process.env.RETELL_API_KEY;
+const outcome = require("./outcome-core");
 if (!API_KEY) {
   console.error("Missing RETELL_API_KEY env var.");
   process.exit(1);
@@ -37,6 +38,7 @@ function printOutcome(call) {
   console.log("call_status:    ", call.call_status);
   console.log("disconnect:     ", call.disconnection_reason);
   console.log("duration (s):   ", call.duration_ms ? Math.round(call.duration_ms / 1000) : "n/a");
+  console.log("outcome:        ", JSON.stringify(outcome.resolveOutcome(call), null, 2));
   console.log("--- post-call analysis ---");
   console.log("custom fields:  ", JSON.stringify(a.custom_analysis_data ?? {}, null, 2));
   console.log("successful:     ", a.call_successful);

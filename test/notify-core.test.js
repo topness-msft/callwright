@@ -35,6 +35,18 @@ test("buildCallSms: falls back to to_number when business missing", () => {
   assert.ok(s.includes("+15557654321"));
 });
 
+test("buildCallSms: custom failed wins over contradictory Retell success", () => {
+  const s = N.buildCallSms(baseCall({
+    call: {
+      call_analysis: {
+        call_successful: true,
+        custom_analysis_data: { status: "failed" },
+      },
+    },
+  }));
+  assert.match(s, /❌|not completed/i);
+});
+
 // ---- shouldNotify (pure, reads round-tripped vars) ----
 test("shouldNotify: reads notify_sms / notify_to vars", () => {
   assert.deepEqual(N.shouldNotify({ retell_llm_dynamic_variables: { notify_sms: "1", notify_to: "+15550101111" } }), { notify: true, to: "+15550101111" });

@@ -3,7 +3,7 @@
   "en": {
     "principal_ref_anon": "the person I'm assisting",
     "behalf_named": " on behalf of {name}",
-    "opening_ask_fallback": "I'm calling about {objective_lc}. Could you help me with that?",
+    "opening_ask_fallback": "I'm calling about {objective_lc} — could you help me with that?",
     "voicemail_callback": "Hi, this is an AI assistant calling{behalf}. I'm calling to {objective_lc}. Please call back at {callback}. Thank you.",
     "voicemail_no_callback": "Hi, this is an AI assistant calling{behalf}. I'm calling to {objective_lc}. Please call back at your convenience. Thank you.",
     "known_facts_none": "None on file.",
