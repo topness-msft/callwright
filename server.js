@@ -733,7 +733,14 @@ function buildServer() {
   return server;
 }
 const app = express();
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({
+  limit: "1mb",
+  verify: (req, _res, buffer) => {
+    if (req.originalUrl?.split("?")[0] === WEBHOOK_PATH) {
+      req.rawBody = buffer.toString("utf8");
+    }
+  },
+}));
 
 // Single-user auth. Accept the token via either the Authorization header
 // (Claude Desktop / Cursor / Claude Code / ChatGPT) OR a `?key=` query param
@@ -762,7 +769,8 @@ function verifyRetellWebhook(req) {
   try {
     const Retell = require("retell-sdk").Retell || require("retell-sdk").default || require("retell-sdk");
     const sig = req.headers["x-retell-signature"];
-    return Retell.verify(JSON.stringify(req.body), RETELL_KEY, sig);
+    if (!req.rawBody) return false;
+    return Retell.verify(req.rawBody, RETELL_KEY, sig);
   } catch (e) {
     console.error("webhook signature verify failed:", e.message);
     return false;

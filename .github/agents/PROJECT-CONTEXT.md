@@ -55,7 +55,7 @@ learns from their outcomes.
 - Lint / typecheck / build: none configured; runtime syntax checks use
   `node --check <file>`.
 - Coverage / mutation gates: not configured.
-- Current suite status: 106/106 green on 2026-07-11 using `npm test`.
+- Current suite status: 126/126 green on 2026-07-11 using `npm test`.
 
 ## Deploy
 - Environments:

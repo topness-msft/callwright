@@ -4,10 +4,12 @@ const http = require("node:http");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const crypto = require("node:crypto");
 
 test("call_analyzed returns 200 even when the Claude Routine request fails", async () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "callwright-webhook-"));
-  process.env.WEBHOOK_SKIP_VERIFY = "1";
+  const retellKey = "test-retell-key";
+  process.env.RETELL_API_KEY = retellKey;
   process.env.CALLWRIGHT_DATA_DIR = dataDir;
   process.env.CLAUDE_ROUTINE_URL = "https://example.test/fire";
   process.env.CLAUDE_ROUTINE_TOKEN = "token";
@@ -38,7 +40,12 @@ test("call_analyzed returns 200 even when the Claude Routine request fails", asy
           custom_analysis_data: { status: "completed" },
         },
       },
-    });
+    }, null, 2);
+    const timestamp = Date.now();
+    const digest = crypto.createHmac("sha256", retellKey)
+      .update(body + timestamp)
+      .digest("hex");
+    const signature = `v=${timestamp},d=${digest}`;
 
     const response = await new Promise((resolve, reject) => {
       const req = http.request({
@@ -49,6 +56,7 @@ test("call_analyzed returns 200 even when the Claude Routine request fails", asy
         headers: {
           "Content-Type": "application/json",
           "Content-Length": Buffer.byteLength(body),
+          "X-Retell-Signature": signature,
         },
       }, (res) => {
         let responseBody = "";
@@ -66,7 +74,7 @@ test("call_analyzed returns 200 even when the Claude Routine request fails", asy
   } finally {
     await new Promise((resolve) => server.close(resolve));
     global.fetch = originalFetch;
-    delete process.env.WEBHOOK_SKIP_VERIFY;
+    delete process.env.RETELL_API_KEY;
     delete process.env.CALLWRIGHT_DATA_DIR;
     delete process.env.CLAUDE_ROUTINE_URL;
     delete process.env.CLAUDE_ROUTINE_TOKEN;
