@@ -1,7 +1,7 @@
 {
   "name": "callwright",
   "version": "1.0.3",
-  "mcpName": "io.github.topness-msft/callwright",
+  "mcpName": "com.topness/callwright",
   "description": "A voice agent that places phone calls (reservations, appointments, inquiries) on your behalf, shaped by LLM direction + grounding. Runs fire-and-forget on Retell; an MCP server lets an LLM shape the grounding before each call.",
   "main": "server.js",
   "bin": {
@@ -56,15 +56,15 @@
     "voice-agent",
     "phone-calls"
   ],
-  "author": "topness-msft",
+  "author": "topness",
   "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/topness-msft/callwright.git"
+    "url": "git+https://github.com/topness/callwright.git"
   },
-  "homepage": "https://github.com/topness-msft/callwright#readme",
+  "homepage": "https://github.com/topness/callwright#readme",
   "bugs": {
-    "url": "https://github.com/topness-msft/callwright/issues"
+    "url": "https://github.com/topness/callwright/issues"
   },
   "engines": {
     "node": ">=18"

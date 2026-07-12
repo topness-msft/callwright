@@ -120,11 +120,16 @@ if (-not $SkipRegistry) {
     Ok "mcp-publisher installed ($($rel.tag_name))"
   }
 
-  # Try publish; if it fails (e.g. not authenticated), do the GitHub device login and retry.
+  # The com.topness namespace requires topness.com DNS verification.
+  # Keep the private key outside the repository in MCP_REGISTRY_TOPNESS_PRIVATE_KEY.
   & $pub publish
   if ($LASTEXITCODE -ne 0) {
-    Write-Host "Not authenticated — starting GitHub device login (authorize as topness-msft)..." -ForegroundColor Yellow
-    & $pub login github
+    if (-not $env:MCP_REGISTRY_TOPNESS_PRIVATE_KEY) {
+      Fail "Set MCP_REGISTRY_TOPNESS_PRIVATE_KEY after publishing the topness.com MCP DNS proof."
+      exit 1
+    }
+    Write-Host "Not authenticated - starting topness.com DNS login..." -ForegroundColor Yellow
+    & $pub login dns --domain=topness.com --private-key=$env:MCP_REGISTRY_TOPNESS_PRIVATE_KEY
     if ($LASTEXITCODE -ne 0) { Fail "mcp-publisher login failed."; exit 1 }
     & $pub publish
     if ($LASTEXITCODE -ne 0) { Fail "mcp-publisher publish failed."; exit 1 }
