@@ -27,8 +27,9 @@ test("points registry metadata at the renamed GitHub repository", () => {
   assert.strictEqual(serverJson.repository.url, "https://github.com/topness/callwright");
 });
 
-test("documents domain verification and the renamed GitHub login", () => {
-  assert.match(releaseScript, /com\.topness domain verification/i);
-  assert.match(releaseScript, /authorize as topness\)/i);
+test("uses DNS authentication for the topness.com registry namespace", () => {
+  assert.match(releaseScript, /MCP_REGISTRY_TOPNESS_PRIVATE_KEY/);
+  assert.match(releaseScript, /login dns --domain=topness\.com/);
+  assert.doesNotMatch(releaseScript, /login github/);
   assert.doesNotMatch(releaseScript, /topness-msft/i);
 });
