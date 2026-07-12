@@ -1,6 +1,6 @@
 {
   "name": "callwright",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "mcpName": "com.topness/callwright",
   "description": "A voice agent that places phone calls (reservations, appointments, inquiries) on your behalf, shaped by LLM direction + grounding. Runs fire-and-forget on Retell; an MCP server lets an LLM shape the grounding before each call.",
   "main": "server.js",
